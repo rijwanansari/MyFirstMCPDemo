@@ -102,7 +102,7 @@ public static class Program
             // List available tools
             await ListToolsAsync(client);
 
-            // Run interactive demo
+            // Run conversational interactive demo loop
             await RunInteractiveDemoAsync(client);
 
             // Cleanup
@@ -142,145 +142,385 @@ public static class Program
 
     private static async Task RunInteractiveDemoAsync(IMcpClient client)
     {
-        Console.WriteLine("🎮 Running Interactive Demo...");
+        Console.WriteLine("🎮 Interactive Demo");
+        Console.WriteLine("Type one of: weather, calculator, todo, textutility");
+        Console.WriteLine("Type 'exit' to quit.");
         Console.WriteLine();
 
-        // Demo 1: Weather Tool
-        await DemoWeatherTool(client);
+        while (true)
+        {
+            Console.Write("👉 Which tool would you like to use? ");
+            var choice = (Console.ReadLine() ?? string.Empty).Trim().ToLowerInvariant();
 
-        // Demo 2: Calculator Tool
-        await DemoCalculatorTool(client);
+            if (string.IsNullOrWhiteSpace(choice))
+            {
+                Console.WriteLine("  ⚠️ Please enter a tool name or 'exit'.");
+                continue;
+            }
 
-        // Demo 3: Todo Tool
-        await DemoTodoTool(client);
+            if (choice is "exit" or "quit" or "q")
+            {
+                Console.WriteLine("🛑 Exiting interactive demo...");
+                break;
+            }
 
-        // Demo 4: Text Utility Tool
-        await DemoTextUtilityTool(client);
+            try
+            {
+                switch (choice)
+                {
+                    case "weather":
+                    case "weathertool":
+                        await InteractiveWeatherAsync(client);
+                        break;
+
+                    case "calculator":
+                    case "calculatortool":
+                        await InteractiveCalculatorAsync(client);
+                        break;
+
+                    case "todo":
+                    case "todotool":
+                        await InteractiveTodoAsync(client);
+                        break;
+
+                    case "textutility":
+                    case "textutilitytool":
+                        await InteractiveTextUtilityAsync(client);
+                        break;
+
+                    default:
+                        Console.WriteLine("  ⚠️ Unknown tool. Try: weather, calculator, todo, textutility, or 'exit'.");
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"  ⚠️ Tool error: {ex.Message}");
+            }
+
+            Console.WriteLine();
+            Console.WriteLine("🔁 Choose the next tool (weather, calculator, todo, textutility) or 'exit' to quit.");
+        }
     }
 
-    private static async Task DemoWeatherTool(IMcpClient client)
+    private static async Task InteractiveWeatherAsync(IMcpClient client)
     {
-        Console.WriteLine("🌤️  Weather Tool Demo");
-        Console.WriteLine(new string('-', 40));
+        Console.WriteLine("🌤️  Weather Tool");
+        Console.Write("  Location: ");
+        var location = (Console.ReadLine() ?? "Tokyo").Trim();
+        if (string.IsNullOrWhiteSpace(location)) location = "Tokyo";
 
-        try
+        Console.Write("  Unit (celsius/fahrenheit) [celsius]: ");
+        var unit = (Console.ReadLine() ?? "celsius").Trim().ToLowerInvariant();
+        if (unit != "celsius" && unit != "fahrenheit") unit = "celsius";
+
+        var result = await client.CallToolAsync("GetWeather", new Dictionary<string, object?>
         {
-            var result = await client.CallToolAsync("GetWeather", new Dictionary<string, object?>
-            {
-                ["location"] = "Tokyo",
-                ["unit"] = "celsius"
-            });
+            ["location"] = location,
+            ["unit"] = unit
+        });
 
-            Console.WriteLine($"Weather in Tokyo:");
-            PrintToolResult(result);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  ⚠️ Could not get weather: {ex.Message}");
-        }
-
-        Console.WriteLine();
+        Console.WriteLine($"  Weather for {location} ({unit}):");
+        PrintToolResult(result);
     }
 
-    private static async Task DemoCalculatorTool(IMcpClient client)
+    private static async Task InteractiveCalculatorAsync(IMcpClient client)
     {
-        Console.WriteLine("🔢 Calculator Tool Demo");
-        Console.WriteLine(new string('-', 40));
+        Console.WriteLine("🔢 Calculator Tool");
+        Console.WriteLine("  Operations: add, subtract, multiply, divide, power, squareroot, percentage, modulo");
+        Console.Write("  Operation: ");
+        var op = (Console.ReadLine() ?? string.Empty).Trim().ToLowerInvariant();
 
-        try
+        static double ReadDouble(string prompt, double def)
         {
-            // Addition
-            var addResult = await client.CallToolAsync("Add", new Dictionary<string, object?>
-            {
-                ["a"] = 15.5,
-                ["b"] = 24.5
-            });
-            Console.WriteLine("Addition (15.5 + 24.5):");
-            PrintToolResult(addResult);
-
-            // Square Root
-            var sqrtResult = await client.CallToolAsync("SquareRoot", new Dictionary<string, object?>
-            {
-                ["number"] = 144
-            });
-            Console.WriteLine("Square Root (√144):");
-            PrintToolResult(sqrtResult);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  ⚠️ Calculator error: {ex.Message}");
+            Console.Write($"  {prompt} [{def}]: ");
+            var s = Console.ReadLine();
+            return double.TryParse(s, out var v) ? v : def;
         }
 
-        Console.WriteLine();
+        Dictionary<string, object?> args;
+        string toolName;
+
+        switch (op)
+        {
+            case "add":
+                toolName = "Add";
+                args = new Dictionary<string, object?>
+                {
+                    ["a"] = ReadDouble("a", 10),
+                    ["b"] = ReadDouble("b", 5)
+                };
+                break;
+
+            case "subtract":
+                toolName = "Subtract";
+                args = new Dictionary<string, object?>
+                {
+                    ["a"] = ReadDouble("a", 10),
+                    ["b"] = ReadDouble("b", 5)
+                };
+                break;
+
+            case "multiply":
+                toolName = "Multiply";
+                args = new Dictionary<string, object?>
+                {
+                    ["a"] = ReadDouble("a", 10),
+                    ["b"] = ReadDouble("b", 5)
+                };
+                break;
+
+            case "divide":
+                toolName = "Divide";
+                args = new Dictionary<string, object?>
+                {
+                    ["a"] = ReadDouble("a", 10),
+                    ["b"] = ReadDouble("b", 2)
+                };
+                break;
+
+            case "power":
+                toolName = "Power";
+                args = new Dictionary<string, object?>
+                {
+                    ["base"] = ReadDouble("base", 2),
+                    ["exponent"] = ReadDouble("exponent", 8)
+                };
+                break;
+
+            case "squareroot":
+            case "sqrt":
+                toolName = "SquareRoot";
+                args = new Dictionary<string, object?>
+                {
+                    ["number"] = ReadDouble("number", 144)
+                };
+                break;
+
+            case "percentage":
+                toolName = "Percentage";
+                args = new Dictionary<string, object?>
+                {
+                    ["value"] = ReadDouble("value", 75),
+                    ["percent"] = ReadDouble("percent", 10)
+                };
+                break;
+
+            case "modulo":
+                toolName = "Modulo";
+                args = new Dictionary<string, object?>
+                {
+                    ["a"] = ReadDouble("a", 10),
+                    ["b"] = ReadDouble("b", 3)
+                };
+                break;
+
+            default:
+                Console.WriteLine("  ⚠️ Unknown operation.");
+                return;
+        }
+
+        var result = await client.CallToolAsync(toolName, args);
+        Console.WriteLine($"  Result ({toolName}):");
+        PrintToolResult(result);
     }
 
-    private static async Task DemoTodoTool(IMcpClient client)
+    private static async Task InteractiveTodoAsync(IMcpClient client)
     {
-        Console.WriteLine("📝 Todo Tool Demo");
-        Console.WriteLine(new string('-', 40));
+        Console.WriteLine("📝 Todo Tool");
+        Console.WriteLine("  Actions: create, list, stats, complete, update, delete, clearcompleted");
+        Console.Write("  Action: ");
+        var action = (Console.ReadLine() ?? string.Empty).Trim().ToLowerInvariant();
 
-        try
+        Dictionary<string, object?> args;
+        string toolName;
+
+        switch (action)
         {
-            // Create a todo
-            var createResult = await client.CallToolAsync("CreateTodo", new Dictionary<string, object?>
-            {
-                ["title"] = "Learn MCP Protocol",
-                ["description"] = "Study the Model Context Protocol and implement a demo",
-                ["priority"] = "High"
-            });
-            Console.WriteLine("Created Todo:");
-            PrintToolResult(createResult);
+            case "create":
+                toolName = "CreateTodo";
+                Console.Write("  Title: ");
+                var title = (Console.ReadLine() ?? "New Task").Trim();
+                Console.Write("  Description: ");
+                var desc = (Console.ReadLine() ?? string.Empty).Trim();
+                Console.Write("  Priority (Low/Medium/High) [Medium]: ");
+                var prio = (Console.ReadLine() ?? "Medium").Trim();
+                args = new Dictionary<string, object?>
+                {
+                    ["title"] = string.IsNullOrWhiteSpace(title) ? "New Task" : title,
+                    ["description"] = desc,
+                    ["priority"] = string.IsNullOrWhiteSpace(prio) ? "Medium" : prio
+                };
+                break;
 
-            // Create another todo
-            await client.CallToolAsync("CreateTodo", new Dictionary<string, object?>
-            {
-                ["title"] = "Build MCP Server",
-                ["description"] = "Implement tools for the MCP server",
-                ["priority"] = "Medium"
-            });
+            case "list":
+                toolName = "GetTodos";
+                Console.Write("  Status filter (All/Pending/Completed) [All]: ");
+                var status = (Console.ReadLine() ?? "All").Trim();
+                args = new Dictionary<string, object?>
+                {
+                    ["status"] = string.IsNullOrWhiteSpace(status) ? "All" : status
+                };
+                break;
 
-            // Get stats
-            var statsResult = await client.CallToolAsync("GetTodoStats", new Dictionary<string, object?>());
-            Console.WriteLine("Todo Statistics:");
-            PrintToolResult(statsResult);
+            case "stats":
+                toolName = "GetTodoStats";
+                args = new Dictionary<string, object?>();
+                break;
+
+            case "complete":
+                toolName = "CompleteTodo";
+                Console.Write("  Todo Id: ");
+                var completeId = (Console.ReadLine() ?? string.Empty).Trim();
+                args = new Dictionary<string, object?>
+                {
+                    ["id"] = completeId
+                };
+                break;
+
+            case "update":
+                toolName = "UpdateTodo";
+                Console.Write("  Todo Id: ");
+                var updateId = (Console.ReadLine() ?? string.Empty).Trim();
+                Console.Write("  New Title (optional): ");
+                var newTitle = (Console.ReadLine() ?? string.Empty).Trim();
+                Console.Write("  New Description (optional): ");
+                var newDesc = (Console.ReadLine() ?? string.Empty).Trim();
+                Console.Write("  New Priority (Low/Medium/High) (optional): ");
+                var newPrio = (Console.ReadLine() ?? string.Empty).Trim();
+                args = new Dictionary<string, object?>
+                {
+                    ["id"] = updateId,
+                    ["title"] = string.IsNullOrWhiteSpace(newTitle) ? null : newTitle,
+                    ["description"] = string.IsNullOrWhiteSpace(newDesc) ? null : newDesc,
+                    ["priority"] = string.IsNullOrWhiteSpace(newPrio) ? null : newPrio
+                };
+                break;
+
+            case "delete":
+                toolName = "DeleteTodo";
+                Console.Write("  Todo Id: ");
+                var deleteId = (Console.ReadLine() ?? string.Empty).Trim();
+                args = new Dictionary<string, object?>
+                {
+                    ["id"] = deleteId
+                };
+                break;
+
+            case "clearcompleted":
+                toolName = "ClearCompleted";
+                args = new Dictionary<string, object?>();
+                break;
+
+            default:
+                Console.WriteLine("  ⚠️ Unknown action.");
+                return;
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"  ⚠️ Todo error: {ex.Message}");
-        }
 
-        Console.WriteLine();
+        var result = await client.CallToolAsync(toolName, args);
+        Console.WriteLine($"  Todo Response ({toolName}):");
+        PrintToolResult(result);
     }
 
-    private static async Task DemoTextUtilityTool(IMcpClient client)
+    private static async Task InteractiveTextUtilityAsync(IMcpClient client)
     {
-        Console.WriteLine("📄 Text Utility Tool Demo");
-        Console.WriteLine(new string('-', 40));
+        Console.WriteLine("📄 Text Utility Tool");
+        Console.WriteLine("  Actions: analyze, convertcase, reverse, deduplicate, extractemails, extracturls, slugify, truncate");
+        Console.Write("  Action: ");
+        var action = (Console.ReadLine() ?? string.Empty).Trim().ToLowerInvariant();
 
-        try
-        {
-            // Analyze text
-            var analyzeResult = await client.CallToolAsync("AnalyzeText", new Dictionary<string, object?>
-            {
-                ["text"] = "Hello World! This is a demo of the MCP Text Utility Tool. It can analyze text and perform various transformations."
-            });
-            Console.WriteLine("Text Analysis:");
-            PrintToolResult(analyzeResult);
+        Dictionary<string, object?> args;
+        string toolName;
 
-            // Slugify
-            var slugResult = await client.CallToolAsync("Slugify", new Dictionary<string, object?>
-            {
-                ["text"] = "My Awesome Blog Post Title!"
-            });
-            Console.WriteLine("Slugify 'My Awesome Blog Post Title!':");
-            PrintToolResult(slugResult);
-        }
-        catch (Exception ex)
+        string ReadText(string prompt, string def)
         {
-            Console.WriteLine($"  ⚠️ Text utility error: {ex.Message}");
+            Console.Write($"  {prompt} ");
+            var t = Console.ReadLine();
+            t = string.IsNullOrWhiteSpace(t) ? def : t!;
+            return t;
         }
 
-        Console.WriteLine();
+        switch (action)
+        {
+            case "analyze":
+                toolName = "AnalyzeText";
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text:", "Hello World! This is sample text.")
+                };
+                break;
+
+            case "convertcase":
+                toolName = "ConvertCase";
+                Console.Write("  Mode (upper/lower/title/sentence/toggle) [upper]: ");
+                var mode = (Console.ReadLine() ?? "upper").Trim().ToLowerInvariant();
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text:", "Convert Me"),
+                    ["mode"] = string.IsNullOrWhiteSpace(mode) ? "upper" : mode
+                };
+                break;
+
+            case "reverse":
+                toolName = "ReverseText";
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text:", "Reverse this")
+                };
+                break;
+
+            case "deduplicate":
+                toolName = "RemoveDuplicateLines";
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text (multi-line):", "a\na\nb\nc\nc")
+                };
+                break;
+
+            case "extractemails":
+                toolName = "ExtractEmails";
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text:", "Contact us at info@example.com and support@example.org")
+                };
+                break;
+
+            case "extracturls":
+                toolName = "ExtractUrls";
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text:", "Visit https://example.com and http://example.org")
+                };
+                break;
+
+            case "slugify":
+                toolName = "Slugify";
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text:", "My Awesome Blog Post Title!")
+                };
+                break;
+
+            case "truncate":
+                toolName = "Truncate";
+                Console.Write("  Max length [20]: ");
+                var sLen = Console.ReadLine();
+                var maxLen = int.TryParse(sLen, out var l) ? l : 20;
+                args = new Dictionary<string, object?>
+                {
+                    ["text"] = ReadText("Text:", "This is a long text that will be truncated"),
+                    ["maxLength"] = maxLen
+                };
+                break;
+
+            default:
+                Console.WriteLine("  ⚠️ Unknown action.");
+                return;
+        }
+
+        var result = await client.CallToolAsync(toolName, args);
+        Console.WriteLine($"  Text Utility Response ({toolName}):");
+        PrintToolResult(result);
     }
 
     private static void PrintToolResult(CallToolResponse result)
